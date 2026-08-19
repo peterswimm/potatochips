@@ -33,7 +33,8 @@ CXXFLAGS := \
 	-mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb \
 	-fno-rtti -fno-exceptions -fno-threadsafe-statics \
 	-Os -fPIC \
-	-Wall -Wno-class-memaccess -Wno-unused-variable
+	-Wall -Wno-class-memaccess -Wno-unused-variable \
+	-MMD -MP
 
 BUILD_DIR := build
 
@@ -47,6 +48,9 @@ all: $(OBJECTS)
 $(BUILD_DIR)/%.o: plugins/%.cpp
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<
+
+# rebuild when any header the algorithms pull in changes
+-include $(wildcard $(BUILD_DIR)/*.d)
 
 clean:
 	rm -rf $(BUILD_DIR)

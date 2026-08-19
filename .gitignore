@@ -196,3 +196,6 @@ Temporary Items
 
 # disting NT plug-in build products
 distingNT/build/
+
+# disting NT host-test build products
+distingNT/test/build/

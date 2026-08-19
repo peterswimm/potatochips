@@ -6,8 +6,11 @@ plug-in API. Each of the sixteen VCV Rack modules becomes one NT algorithm.
 
 The emulators themselves are the same code the Rack plug-in runs: everything
 under [`../src/dsp`](../src/dsp) is header-only and independent of Rack, so this
-port reuses it unmodified and re-implements only the module layer — the part
-that reads a panel and drives the chip's registers.
+port reuses it and re-implements only the module layer — the part that reads a
+panel and drives the chip's registers. The only changes to the shared DSP are
+the memory-safety fixes listed under
+[Differences from the Rack build](#bugs-the-port-fixed-in-shared-code), which
+building for a bare-metal target brought to light.
 
 ## Building
 
@@ -115,10 +118,38 @@ Beyond `NT_globals`, the plug-ins reference only standard library symbols the
 firmware provides: `memcpy`, `memmove`, `memset`, and `cos`, `sin`, `pow`,
 `powf`, `log`, `log2f` for the emulators' table generation.
 
+## Testing
+
+The algorithms can be exercised on a host machine, away from the module:
+
+```shell
+make -C distingNT/test
+```
+
+Each algorithm is linked into its own executable together with a stand-in for
+the firmware, built with the address and undefined-behaviour sanitizers. The
+harness plays the part of the module: it asks the plug-in for its factories,
+allocates exactly the memory each one declares with guard regions around it,
+feeds parameter defaults and busses, and renders 256 steps in three passes —
+the defaults with quiet inputs, every input routed to a bus held at 5V, and
+eight rounds of pseudo-random parameter values. It checks that
+
+-   the parameter tables are self-consistent and the pages only name
+    parameters that exist,
+-   nothing writes outside the memory it asked for,
+-   every sample written to a bus is finite and not a runaway, and
+-   an algorithm tagged as an instrument actually makes a sound.
+
+Pass a seed to widen the random pass, e.g. `./build/SuperEcho 0xBEEF`; the
+default seed keeps runs reproducible.
+
+What it cannot check is whether an algorithm *sounds* like its Rack
+counterpart. That needs the module.
+
 ## Differences from the Rack build
 
 The port reproduces the Rack modules' register math as it stands, including
-where that math is idiosyncratic. Three things are deliberately different.
+where that math is idiosyncratic. These are the places it does not.
 
 **Polyphony.** Rack modules run up to sixteen polyphonic channels per module.
 The NT has one signal per bus, so each algorithm hosts a single emulator. Add
@@ -136,6 +167,50 @@ Sampler ignores the phase modulation switch on its first voice, which has no
 preceding voice to modulate it; the Rack build reads one voice below its array
 there.
 
+### Bugs the port fixed in shared code
+
+Running the algorithms under the sanitizers turned up memory errors in the
+emulators that the Rack build shares. All of these are fixed on this branch, and
+all of them affect the Rack build too:
+
+-   `BLIPBuffer::read_sample()` shifted one element too many, and cleared one
+    element past the end of its buffer — on every sample, for every buffer. In
+    the Rack build that write lands in the next buffer's first field; here it
+    landed in the chip emulator that follows the buffers and zeroed an
+    oscillator's output pointer.
+-   `BLIPSynthesizer::adjust_impulse()` ran its phase loop one step wide at both
+    ends, reading before and writing past its impulse table — and, because of
+    the same off-by-one, never reached the phase-0.5 case that halves the error
+    correction.
+-   `Ricoh2A03::Oscillator::reset()` was missing its `= 0`, so it copied the
+    uninitialised fourth register across the other three instead of clearing
+    them, and left the `reg_written` flags holding whatever was in memory.
+-   `NintendoGBS`'s register count was the difference of its address bounds
+    rather than the span, one short of the inclusive range its own `write()`
+    accepts, so writing the last wave-RAM byte wrote past the array.
+-   `DigitalOscillator` took the note that selects its band-limited wave-table
+    straight from the pitch, unbounded. A frequency of zero or a large control
+    voltage indexed past the end of the table; a table lookup on the resulting
+    pointer segfaulted.
+-   The S-DSP, the echo and the YM2612 shifted signed values left and overflowed
+    signed products in their filter and modulation paths. The shifts are now
+    multiplies by the same powers of two, which are exact at these magnitudes,
+    and the products are computed wide before being clamped.
+
+### Left alone
+
+Two things look wrong but were left as they are, because changing them changes
+what the modules sound like:
+
+-   Super VCA's loudness compensation rises with the filter mode (`2^mode`)
+    while the filter itself weakens (`setFilter(3 - mode)`), so the mode
+    labelled quietest is unfiltered and boosted eight times — the opposite of
+    what the code's comment describes. The port keeps the Rack mapping, which
+    is why the algorithm can peak past the nominal output range.
+-   Super Sampler's built-in sample is packed into BRR nibbles without masking,
+    so a negative sample's sign extension sets the neighbouring nibble too. The
+    packing is preserved exactly; only the undefined shift was removed.
+
 Some things the Rack panels offer have no equivalent here. The GameBoy and
 Namco 163 modules let you draw their wave-tables; this port morphs between the
 five built-in tables those modules start with, which is what the `Waveform`
@@ -150,7 +225,10 @@ distingNT/
 ├── include/nt_potatochips/
 │   ├── compat.hpp                      lets the DSP headers build bare-metal
 │   └── chip.hpp                        busses, pitch, and emulator hosting
-└── plugins/                            one algorithm per file
+├── plugins/                            one algorithm per file
+└── test/                               the host-side harness
+    ├── harness.cpp                     stands in for the module
+    └── nt_stub.cpp                     stands in for the firmware
 ```
 
 `compat.hpp` closes the two gaps between the DSP layer and a bare-metal target.

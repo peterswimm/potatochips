@@ -33,9 +33,9 @@ enum : unsigned {
 /// @param n a 32-bit integer value to clip
 /// @returns n clipped to a 16-bit value [-32768, 32767]
 ///
-inline int16_t clamp_16(int n) {
-    const int lower = std::numeric_limits<int16_t>::min();
-    const int upper = std::numeric_limits<int16_t>::max();
+inline int16_t clamp_16(int64_t n) {
+    const int64_t lower = std::numeric_limits<int16_t>::min();
+    const int64_t upper = std::numeric_limits<int16_t>::max();
     return std::max(lower, std::min(n, upper));
 }
 

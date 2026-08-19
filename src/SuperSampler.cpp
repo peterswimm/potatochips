@@ -121,9 +121,11 @@ struct SuperSampler : Module {
             block->header.flags.is_loop = 0;
             block->header.flags.is_end = sample + 1 >= SonyS_DSP::HYAW_SAMPLE_LENGTH / 16;
             for (unsigned i = 0; i < 2 * SonyS_DSP::BitRateReductionBlock::NUM_SAMPLES; i+=2) {
-                auto hi = SonyS_DSP::hyaw_sample(i + 16 * sample);
-                auto lo = SonyS_DSP::hyaw_sample(i + 16 * sample + 1) << 4;
-                block->samples[i/2] = hi | lo;
+                // the samples are signed, so pack them unsigned: shifting a
+                // negative value left is undefined
+                auto hi = static_cast<unsigned>(SonyS_DSP::hyaw_sample(i + 16 * sample));
+                auto lo = static_cast<unsigned>(SonyS_DSP::hyaw_sample(i + 16 * sample + 1)) << 4;
+                block->samples[i/2] = static_cast<uint8_t>(hi | lo);
             }
         } while(sample++ < SonyS_DSP::HYAW_SAMPLE_LENGTH / 16);
 

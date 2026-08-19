@@ -151,7 +151,11 @@ struct FeedbackOperator : public Operator {
             // 1. shift mod by the bit-depth
             // 1. shift carrier by the feedback amount
             // 1. sum into phase modulation signal for operator
-            const auto pm = (static_cast<int32_t>(mod) << 15) + (fb_carrier << feedback);
+            // the operands are signed, so the shifts are written as multiplies:
+        // shifting a negative value left is undefined. Both products stay well
+        // inside a 32-bit int.
+        const auto pm = static_cast<int32_t>(mod) * (1 << 15) +
+            fb_carrier * (1 << feedback);
             output_feedback[1] = calculate_output(envelope, pm);
         } else {  // clear the next output from operator
             output_feedback[1] = 0;

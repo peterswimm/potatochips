@@ -169,20 +169,27 @@ class Echo {
             fir_samples[6].samples[StereoSample::RIGHT] * fir_coeff[1] +
             fir_samples[7].samples[StereoSample::RIGHT] * fir_coeff[0];
 
-        // put the echo samples into the buffer
-        echo->samples[StereoSample::LEFT] =
-            clamp_16(left + ((feedback_left  * feedback) >> 14));
-        echo->samples[StereoSample::RIGHT] =
-            clamp_16(right + ((feedback_right * feedback) >> 14));
+        // put the echo samples into the buffer. The FIR sum can reach eight
+        // times a 16-bit sample, which a signed 8-bit coefficient then
+        // overflows a 32-bit int with, so the products are widened. Everything
+        // is clamped to 16 bits either way.
+        echo->samples[StereoSample::LEFT] = clamp_16(
+            left + ((static_cast<int64_t>(feedback_left) * feedback) >> 14)
+        );
+        echo->samples[StereoSample::RIGHT] = clamp_16(
+            right + ((static_cast<int64_t>(feedback_right) * feedback) >> 14)
+        );
 
         // (1) add the echo to the samples for the left and right channel,
         // (2) clamp the left and right samples, and (3) place them into
         // the buffer
         StereoSample output_buffer;
-        output_buffer.samples[StereoSample::LEFT] =
-            clamp_16(left + ((feedback_left  * mixLeft) >> 14));
-        output_buffer.samples[StereoSample::RIGHT] =
-            clamp_16(right + ((feedback_right * mixRight) >> 14));
+        output_buffer.samples[StereoSample::LEFT] = clamp_16(
+            left + ((static_cast<int64_t>(feedback_left) * mixLeft) >> 14)
+        );
+        output_buffer.samples[StereoSample::RIGHT] = clamp_16(
+            right + ((static_cast<int64_t>(feedback_right) * mixRight) >> 14)
+        );
 
         return output_buffer;
     }

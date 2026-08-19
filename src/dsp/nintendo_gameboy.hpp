@@ -31,7 +31,10 @@ class NintendoGBS {
     /// the last address of the APU in memory space
     static constexpr uint16_t ADDR_END   = 0xFF3F;
     /// the total number of registers available on the chip
-    static constexpr auto REGISTER_COUNT = ADDR_END - ADDR_START;
+    /// @details
+    /// The address range is inclusive of ADDR_END, which write() accepts, so
+    /// the count spans one more register than the difference of the bounds.
+    static constexpr auto REGISTER_COUNT = ADDR_END - ADDR_START + 1;
 
     /// the indexes of the channels on the chip
     enum Channel {

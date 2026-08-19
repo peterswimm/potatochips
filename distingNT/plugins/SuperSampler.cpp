@@ -190,11 +190,17 @@ static void setupSourceDirectory(uint8_t* ram) {
                 i < 2 * SonyS_DSP::BitRateReductionBlock::NUM_SAMPLES;
                 i += 2) {
             // hyaw_sample() reads zero past the end of the sample, which the
-            // last block runs into
-            const uint8_t hi = SonyS_DSP::hyaw_sample(i + 16 * block_index);
-            const uint8_t lo =
-                SonyS_DSP::hyaw_sample(i + 16 * block_index + 1) << 4;
-            block->samples[i / 2] = hi | lo;
+            // last block runs into. The samples are signed, so the packing is
+            // done unsigned: shifting a negative value left is undefined, and
+            // the sign extension of a negative sample is what sets the high
+            // nibble here, as it does in the Rack build.
+            const unsigned hi = static_cast<unsigned>(
+                SonyS_DSP::hyaw_sample(i + 16 * block_index)
+            );
+            const unsigned lo = static_cast<unsigned>(
+                SonyS_DSP::hyaw_sample(i + 16 * block_index + 1)
+            ) << 4;
+            block->samples[i / 2] = static_cast<uint8_t>(hi | lo);
         }
     }
 }
