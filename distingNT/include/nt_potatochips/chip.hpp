@@ -218,7 +218,9 @@ struct ChipVoice {
     /// the emulator reach for the heap.
     ///
     template<typename... Args>
-    explicit ChipVoice(float volume, Args... args) : apu(args...) {
+    explicit ChipVoice(float volume, Args&&... args)
+        // forwarded rather than copied: the POKEY's tables are 17KB
+        : apu(static_cast<Args&&>(args)...) {
         for (unsigned osc = 0; osc < ChipEmulator::OSC_COUNT; osc++) {
             apu.set_output(osc, &buffers[osc]);
             buffers[osc].set_sample_rate(NT_globals.sampleRate, CLOCK_RATE);

@@ -24,10 +24,14 @@ INCLUDES := -Iinclude -I$(SRC_PATH) -I$(NT_API_PATH)/include
 # less the warnings raised by the (unmodified) PotatoChips DSP headers:
 #   -Wno-class-memaccess   the emulators memset() their oscillator structs
 #   -Wno-unused-variable   dsp/wavetable4bit.hpp defines unused wavetables
+#
+# -fno-threadsafe-statics is added on top of the examples' flags: the module is
+# single-threaded, and without it the function-local statics in the emulators'
+# lookup tables pull in __cxa_guard_acquire/release.
 CXXFLAGS := \
 	-std=c++11 \
 	-mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb \
-	-fno-rtti -fno-exceptions \
+	-fno-rtti -fno-exceptions -fno-threadsafe-statics \
 	-Os -fPIC \
 	-Wall -Wno-class-memaccess -Wno-unused-variable
 

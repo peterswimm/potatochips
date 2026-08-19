@@ -113,7 +113,7 @@ struct SuperSampler : Module {
         //     block->samples[i] = samples[i];
 
         // the built-in sample, packed into BRR blocks below
-        int sample = 0;
+        unsigned sample = 0;
         do {
             auto block = reinterpret_cast<SonyS_DSP::BitRateReductionBlock*>(&ram[4 + 9 * sample]);
             block->header.flags.set_volume(SonyS_DSP::BitRateReductionBlock::MAX_VOLUME);

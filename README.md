@@ -19,6 +19,10 @@ They're just so addicting!
 
 [SamHyde-PotatoChips]: https://www.youtube.com/watch?v=lL5M-vXq58c
 
+All sixteen modules are also available as native plug-ins for the
+[Expert Sleepers disting NT](https://www.expert-sleepers.co.uk/distingNT.html).
+See [`distingNT/README.md`](distingNT/README.md) to build and install them.
+
 <!-- ------------------------------------------------------------ -->
 <!-- MARK: Blocks -->
 <!-- ------------------------------------------------------------ -->

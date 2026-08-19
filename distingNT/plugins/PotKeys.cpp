@@ -188,7 +188,7 @@ struct _potKeysAlgorithm : public _NT_algorithm {
     ///
     /// @param engine the polynomial tables the chip's oscillators share
     ///
-    explicit _potKeysAlgorithm(Chip::Engine* engine) : voice(VOLUME, engine) { }
+    explicit _potKeysAlgorithm(Chip::Engine& engine) : voice(VOLUME, engine) { }
 
     /// the chip emulator and its BLIP buffers
     ChipVoice<Chip> voice;
@@ -296,8 +296,10 @@ _NT_algorithm* construct(
     const _NT_algorithmRequirements& req,
     const int32_t* specifications
 ) {
+    // the emulator takes the engine by reference so that its constructor
+    // cannot fall back to the heap, which the module does not have
     Chip::Engine* engine = new (ptrs.dram) Chip::Engine();
-    _potKeysAlgorithm* alg = new (ptrs.sram) _potKeysAlgorithm(engine);
+    _potKeysAlgorithm* alg = new (ptrs.sram) _potKeysAlgorithm(*engine);
     alg->parameters = parameters;
     alg->parameterPages = &parameterPages;
     return alg;
