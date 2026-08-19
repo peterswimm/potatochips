@@ -193,3 +193,6 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# disting NT plug-in build products
+distingNT/build/
