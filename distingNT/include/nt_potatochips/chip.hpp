@@ -167,6 +167,27 @@ static inline float frequencyFrom1Hz(float octaves) {
 // MARK: Emulator hosting
 // ---------------------------------------------------------------------------
 
+/// @brief A divider that gates control-rate updates within step().
+struct ControlRateDivider {
+ private:
+    /// the number of frames until the next control-rate update
+    unsigned counter = 0;
+
+ public:
+    /// @brief Return true when this frame should run a control-rate update.
+    /// @details
+    /// Returns true on the first call and every CV_DIVISION calls thereafter.
+    ///
+    inline bool process() {
+        if (counter) {
+            counter--;
+            return false;
+        }
+        counter = CV_DIVISION - 1;
+        return true;
+    }
+};
+
 /// @brief A chip emulator rendering through one BLIPBuffer per oscillator.
 /// @tparam ChipEmulator the class of the chip emulator to host
 /// @details
@@ -182,8 +203,8 @@ struct ChipVoice {
     ChipEmulator apu;
 
  private:
-    /// the number of frames until the next control-rate update
-    unsigned cvCounter = 0;
+    /// the divider that gates the control-rate register updates
+    ControlRateDivider cvDivider;
 
  public:
     /// @brief Initialize a new chip voice.
@@ -212,17 +233,7 @@ struct ChipVoice {
     }
 
     /// @brief Return true when this frame should run a control-rate update.
-    /// @details
-    /// Returns true on the first call and every CV_DIVISION calls thereafter.
-    ///
-    inline bool isControlRate() {
-        if (cvCounter) {
-            cvCounter--;
-            return false;
-        }
-        cvCounter = CV_DIVISION - 1;
-        return true;
-    }
+    inline bool isControlRate() { return cvDivider.process(); }
 
     /// @brief Advance the emulator by one output sample.
     ///
