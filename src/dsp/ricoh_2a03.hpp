@@ -62,8 +62,8 @@ class Ricoh2A03 {
 
         /// @brief Reset the oscillator to it initial state.
         inline void reset() {
-            regs[0] = regs[1] = regs[2] = regs[3];
-            reg_written[0] = reg_written[1] = reg_written[2] = reg_written[3];
+            regs[0] = regs[1] = regs[2] = regs[3] = 0;
+            reg_written[0] = reg_written[1] = reg_written[2] = reg_written[3] = false;
             length_counter = 0;
             delay = 0;
             last_amp = 0;

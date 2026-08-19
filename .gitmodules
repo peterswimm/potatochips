@@ -1,3 +1,6 @@
 [submodule "dep/Catch2"]
 	path = dep/Catch2
 	url = https://github.com/catchorg/Catch2
+[submodule "dep/distingNT_API"]
+	path = dep/distingNT_API
+	url = https://github.com/expertsleepersltd/distingNT_API

@@ -277,7 +277,10 @@ class __attribute__((packed, aligned(32))) BRR_SamplePlayer {
             // both shifted right once to do the filters properly, but
             // the output will be shifted back again at the end.
             int shift = block_header.flags.volume;
-            delta = (delta << shift) >> 1;
+            // delta is a sign-extended 4-bit nibble and shift is at most 15,
+            // so this multiply is exact and cannot overflow. Shifting a
+            // negative value left would be undefined.
+            delta = (delta * (1 << shift)) >> 1;
             if (shift > 0x0C) delta = (delta >> 14) & ~0x7FF;
             // -----------------------------------------------------------
             // MARK: BRR Reconstruction Filter (1,2,3 point IIR)

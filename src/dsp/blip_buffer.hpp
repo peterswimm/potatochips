@@ -198,9 +198,12 @@ class BLIPBuffer {
         // it as a float for later calculation.
         float sample = accumulator >> (SAMPLE_BITS - 16);
         accumulator += *buffer - (accumulator >> (bass_shift));
-        // copy remaining samples to beginning and clear old samples
+        // shift the remaining samples down to the beginning of the buffer and
+        // clear the samples that opened up at the end. `remain` is the number
+        // of samples left in the buffer once `count` have been consumed; the
+        // buffer holds WIDEST_IMPULSE + 1 of them.
         static constexpr auto count = 1;
-        auto remain = count + WIDEST_IMPULSE;
+        static constexpr auto remain = (WIDEST_IMPULSE + 1) - count;
         memmove(buffer, buffer + count, remain * sizeof *buffer);
         memset(buffer + remain, 0, count * sizeof *buffer);
         // scale the sample by the scale factor and the binary code space for
@@ -350,7 +353,13 @@ class BLIPSynthesizer {
     void adjust_impulse() {
         // sum pairs for each phase and add error correction to end of 1st half
         static const int32_t SIZE = impulses_size();
-        for (int32_t p = BLIPBuffer::RESOLUTION; p >= BLIPBuffer::RESOLUTION / 2; p--) {
+        // p indexes the phases of the second half of the kernel and p2 the
+        // mirrored phase in the first half. The bounds are set by the two
+        // accesses below: `impulses[SIZE - RESOLUTION + p]` needs
+        // p <= RESOLUTION - 1, and `impulses[1 + p2]` needs p2 >= -1, i.e.,
+        // the same. Stopping at RESOLUTION / 2 - 1 is what brings p and p2
+        // together for the phase 0.5 impulse.
+        for (int32_t p = BLIPBuffer::RESOLUTION - 1; p >= BLIPBuffer::RESOLUTION / 2 - 1; p--) {
             const int32_t p2 = BLIPBuffer::RESOLUTION - 2 - p;
             int32_t error = kernel_unit;
             for (int32_t i = 1; i < SIZE; i += BLIPBuffer::RESOLUTION) {

@@ -31,7 +31,10 @@ class NintendoGBS {
     /// the last address of the APU in memory space
     static constexpr uint16_t ADDR_END   = 0xFF3F;
     /// the total number of registers available on the chip
-    static constexpr auto REGISTER_COUNT = ADDR_END - ADDR_START;
+    /// @details
+    /// The address range is inclusive of ADDR_END, which write() accepts, so
+    /// the count spans one more register than the difference of the bounds.
+    static constexpr auto REGISTER_COUNT = ADDR_END - ADDR_START + 1;
 
     /// the indexes of the channels on the chip
     enum Channel {
@@ -659,11 +662,18 @@ class NintendoGBS {
         regs[POWER_CONTROL_STATUS - ADDR_START] = 0x01;  // force power
         write(POWER_CONTROL_STATUS, 0x00);
 
+        // the initial contents of the wave RAM, packed two 4-bit samples per
+        // byte as the chip's registers hold them
         static constexpr uint8_t initial_wave[] = {
             0x84, 0x40, 0x43, 0xAA, 0x2D, 0x78, 0x92, 0x3C,
             0x60, 0x59, 0x59, 0xB0, 0x34, 0xB8, 0x2E, 0xDA
         };
-        memcpy(wave.wave, initial_wave, sizeof wave.wave);
+        // unpack the samples into the emulator's one-sample-per-byte wave
+        // table, the same way write() does for the WAVE_TABLE_VALUES registers
+        for (unsigned i = 0; i < sizeof initial_wave; i++) {
+            wave.wave[2 * i] = initial_wave[i] >> 4;
+            wave.wave[2 * i + 1] = initial_wave[i] & 0x0F;
+        }
     }
 
     /// @brief Set the tempo division of the clock.

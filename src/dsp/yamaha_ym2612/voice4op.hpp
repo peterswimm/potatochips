@@ -381,22 +381,22 @@ struct Voice4Op {
             // if feedback is disabled, set feedback carrier to 0
             if (!feedback) feedback_carrier = 0;
             // shift carrier by the feedback amount
-            op1_out[1] = operators[Op1].calculate_output(envelope, feedback_carrier << feedback);
+            op1_out[1] = operators[Op1].calculate_output(envelope, feedback_carrier * (1 << feedback));
         } else {  // clear the next output from operator 1
             op1_out[1] = 0;
         }
         // Operator 3
         envelope = operators[Op3].get_envelope(state);
         if (envelope < ENV_QUIET)
-            *connections[Op3] += operators[Op3].calculate_output(envelope, m2 << 15);
+            *connections[Op3] += operators[Op3].calculate_output(envelope, m2 * (1 << 15));
         // Operator 2
         envelope = operators[Op2].get_envelope(state);
         if (envelope < ENV_QUIET)
-            *connections[Op2] += operators[Op2].calculate_output(envelope, c1 << 15);
+            *connections[Op2] += operators[Op2].calculate_output(envelope, c1 * (1 << 15));
         // Operator 4
         envelope = operators[Op4].get_envelope(state);
         if (envelope < ENV_QUIET)
-            *connections[Op4] += operators[Op4].calculate_output(envelope, c2 << 15);
+            *connections[Op4] += operators[Op4].calculate_output(envelope, c2 * (1 << 15));
         // store current MEM
         mem_value = mem;
         // update phase counters AFTER output calculations

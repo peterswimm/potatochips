@@ -57,6 +57,24 @@ class DigitalOscillator {
 
     /// the MIDI note that corresponds to the current pitch
     uint8_t note = 60;
+
+    /// @brief Set the note, clamped to the range the wave-tables cover.
+    ///
+    /// @param note_ the note to set, which may be out of range or not finite
+    /// @details
+    /// The pitch can come from an unbounded control voltage, and a frequency
+    /// of zero sends the logarithm to negative infinity, so the note is
+    /// clamped rather than trusted.
+    ///
+    inline void setNote(const float& note_) {
+        // the lowest note the band-limited wave-tables cover
+        const float lowest = 12;
+        // renderBandlimitedTriangle() selects a wave-table with the high
+        // nibble of `note - lowest`, of which there are eight per family, so
+        // notes above lowest + 0x7f would index past the end of the family
+        const float highest = lowest + 0x7f;
+        note = Math::clip(note_, lowest, highest);
+    }
     /// the current frequency of the oscillator
     float freq = rack::dsp::FREQ_C4;
     /// the current phase of the oscillator
@@ -98,7 +116,7 @@ class DigitalOscillator {
     ///
     inline void setPitch(const float& pitch) {
         freq = Math::clip(rack::dsp::FREQ_C4 * powf(2.f, pitch), 0.0f, 20000.0f);
-        note = 60 + 12 * pitch;
+        setNote(60 + 12 * pitch);
     }
 
     /// @brief Return the pitch of the oscillator.
@@ -113,7 +131,7 @@ class DigitalOscillator {
     ///
     inline void setFrequency(const float& frequency) {
         freq = frequency;
-        note = 60 + 12 * std::log2(frequency / rack::dsp::FREQ_C4);
+        setNote(60 + 12 * std::log2(frequency / rack::dsp::FREQ_C4));
     }
 
     /// @brief Return the frequency of the oscillator.

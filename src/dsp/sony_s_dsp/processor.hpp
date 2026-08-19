@@ -662,7 +662,10 @@ class Processor {
                 // both shifted right once to do the filters properly, but
                 // the output will be shifted back again at the end.
                 int shift = voice.block_header >> 4;
-                delta = (delta << shift) >> 1;
+                // delta is a sign-extended 4-bit nibble and shift is at most 15,
+            // so this multiply is exact and cannot overflow. Shifting a
+            // negative value left would be undefined.
+            delta = (delta * (1 << shift)) >> 1;
                 if (shift > 0x0C) delta = (delta >> 14) & ~0x7FF;
 
                 // One, two and three point IIR filters
@@ -775,13 +778,16 @@ class Processor {
                 fir_pos[6][1] * fir_coeff[1] +
                 fir_pos[7][1] * fir_coeff[0];
         // add the echo to the samples for the left and right channel
-        left  += (fb_left  * global.left_echo_volume) >> 14;
-        right += (fb_right * global.right_echo_volume) >> 14;
+        // the FIR sum can reach eight times a 16-bit sample, which a
+        // signed 8-bit volume then overflows a 32-bit int with. The result is
+        // clamped to 16 bits below, so widen the product rather than wrap it.
+        left  += (static_cast<int64_t>(fb_left)  * global.left_echo_volume) >> 14;
+        right += (static_cast<int64_t>(fb_right) * global.right_echo_volume) >> 14;
 
         if (!(global.flags & FLAG_MASK_ECHO_WRITE)) {  // echo buffer feedback
             // add feedback to the echo samples
-            echol += (fb_left  * global.echo_feedback) >> 14;
-            echor += (fb_right * global.echo_feedback) >> 14;
+            echol += (static_cast<int64_t>(fb_left)  * global.echo_feedback) >> 14;
+            echor += (static_cast<int64_t>(fb_right) * global.echo_feedback) >> 14;
             // put the echo samples into the buffer
             echo_sample->samples[StereoSample::LEFT] = clamp_16(echol);
             echo_sample->samples[StereoSample::RIGHT] = clamp_16(echor);

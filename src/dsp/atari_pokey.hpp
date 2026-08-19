@@ -405,6 +405,18 @@ class AtariPOKEY {
         reset(engine_ == nullptr ? new Engine : engine_);
     }
 
+    /// Initialize a new Atari POKEY chip emulator.
+    ///
+    /// @param engine_ the engine to initialize the POKEY with
+    /// @details
+    /// Unlike the pointer overload, this constructor cannot fall back to
+    /// allocating an engine, which suits callers that have no heap.
+    ///
+    explicit AtariPOKEY(Engine& engine_) {
+        set_output(NULL);
+        reset(&engine_);
+    }
+
     /// @brief Assign single oscillator output to buffer. If buffer is NULL,
     /// silences the given oscillator.
     ///
