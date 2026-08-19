@@ -22,8 +22,9 @@
 //     name parameters that exist
 // -   construction stays inside the memory the algorithm asked for, which
 //     guard regions around every allocation verify
-// -   rendering produces finite audio within the module's voltage range, from
-//     the defaults, from saturated inputs, and from pseudo-random parameters
+// -   rendering produces audio that is finite and has not run away, from the
+//     defaults, from saturated inputs, and from pseudo-random parameters; the
+//     peak is reported, and noted when it passes the nominal output range
 // -   an algorithm that claims to be an instrument actually makes a sound
 //
 // It cannot check that an algorithm sounds like its Rack counterpart; that
