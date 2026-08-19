@@ -659,11 +659,18 @@ class NintendoGBS {
         regs[POWER_CONTROL_STATUS - ADDR_START] = 0x01;  // force power
         write(POWER_CONTROL_STATUS, 0x00);
 
+        // the initial contents of the wave RAM, packed two 4-bit samples per
+        // byte as the chip's registers hold them
         static constexpr uint8_t initial_wave[] = {
             0x84, 0x40, 0x43, 0xAA, 0x2D, 0x78, 0x92, 0x3C,
             0x60, 0x59, 0x59, 0xB0, 0x34, 0xB8, 0x2E, 0xDA
         };
-        memcpy(wave.wave, initial_wave, sizeof wave.wave);
+        // unpack the samples into the emulator's one-sample-per-byte wave
+        // table, the same way write() does for the WAVE_TABLE_VALUES registers
+        for (unsigned i = 0; i < sizeof initial_wave; i++) {
+            wave.wave[2 * i] = initial_wave[i] >> 4;
+            wave.wave[2 * i + 1] = initial_wave[i] & 0x0F;
+        }
     }
 
     /// @brief Set the tempo division of the clock.

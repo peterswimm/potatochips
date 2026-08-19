@@ -189,8 +189,15 @@ struct ChipVoice {
     /// @brief Initialize a new chip voice.
     ///
     /// @param volume the volume level to set the emulator to
+    /// @param args arguments to forward to the emulator's constructor
+    /// @details
+    /// Most of the emulators are default constructible. The POKEY takes a
+    /// pointer to the polynomial tables it shares between its oscillators,
+    /// which the algorithm allocates from its own memory rather than letting
+    /// the emulator reach for the heap.
     ///
-    explicit ChipVoice(float volume) {
+    template<typename... Args>
+    explicit ChipVoice(float volume, Args... args) : apu(args...) {
         for (unsigned osc = 0; osc < ChipEmulator::OSC_COUNT; osc++) {
             apu.set_output(osc, &buffers[osc]);
             buffers[osc].set_sample_rate(NT_globals.sampleRate, CLOCK_RATE);
