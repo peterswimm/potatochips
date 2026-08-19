@@ -121,11 +121,14 @@ struct SuperSampler : Module {
             block->header.flags.is_loop = 0;
             block->header.flags.is_end = sample + 1 >= SonyS_DSP::HYAW_SAMPLE_LENGTH / 16;
             for (unsigned i = 0; i < 2 * SonyS_DSP::BitRateReductionBlock::NUM_SAMPLES; i+=2) {
-                // the samples are signed, so pack them unsigned: shifting a
-                // negative value left is undefined
-                auto hi = static_cast<unsigned>(SonyS_DSP::hyaw_sample(i + 16 * sample));
-                auto lo = static_cast<unsigned>(SonyS_DSP::hyaw_sample(i + 16 * sample + 1)) << 4;
-                block->samples[i/2] = static_cast<uint8_t>(hi | lo);
+                // The decoder reads the high nibble of each byte before the
+                // low one, so the earlier sample goes in the high nibble. Both
+                // are masked to four bits: the samples are signed, and a
+                // negative one's sign extension would otherwise fill its
+                // neighbour.
+                auto first = SonyS_DSP::hyaw_sample(i + 16 * sample) & 0xf;
+                auto second = SonyS_DSP::hyaw_sample(i + 16 * sample + 1) & 0xf;
+                block->samples[i/2] = static_cast<uint8_t>((first << 4) | second);
             }
         } while(sample++ < SonyS_DSP::HYAW_SAMPLE_LENGTH / 16);
 
