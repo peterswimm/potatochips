@@ -22,6 +22,61 @@
 #include "dsp/math.hpp"
 
 // ---------------------------------------------------------------------------
+// MARK: Shapes
+// ---------------------------------------------------------------------------
+
+/// the number of shapes the oscillator can render
+static constexpr unsigned NUM_SHAPES =
+    Oscillator::MutableIntstrumentsEdges::NUM_SHAPES;
+
+/// the name of each oscillator shape
+static const std::string SHAPE_LABELS[] = {
+    "Sine",
+    "Triangle",
+    "NES Triangle",
+    "Sample+Hold",
+    "LFSR Long",
+    "LFSR Short",
+    "Pulse 50%",
+    "Pulse 66%",
+    "Pulse 75%",
+    "Pulse 87%",
+    "Pulse 95%",
+    "Pulse CV",
+};
+
+static_assert(
+    sizeof(SHAPE_LABELS) / sizeof(SHAPE_LABELS[0]) == NUM_SHAPES,
+    "the shape names and the oscillator's shapes disagree"
+);
+
+/// @brief The color of the indicator light for each oscillator shape, in RGB.
+/// @details
+/// The first six reproduce the colors that packing the shape index into three
+/// bits used to produce, so that the shapes of the digital oscillator look as
+/// they always have. That encoding only reached seven shapes, so the pulses
+/// take the mixed colors that are left.
+static const float SHAPE_COLORS[][3] = {
+    {0.f, 0.f, 1.f},  // Sine:         blue
+    {0.f, 1.f, 0.f},  // Triangle:     green
+    {0.f, 1.f, 1.f},  // NES Triangle: cyan
+    {1.f, 0.f, 0.f},  // Sample+Hold:  red
+    {1.f, 0.f, 1.f},  // LFSR Long:    magenta
+    {1.f, 1.f, 0.f},  // LFSR Short:   yellow
+    {1.f, 1.f, 1.f},  // Pulse 50%:    white
+    {1.f, .5f, 0.f},  // Pulse 66%:    orange
+    {0.f, 1.f, .5f},  // Pulse 75%:    spring green
+    {0.f, .5f, 1.f},  // Pulse 87%:    azure
+    {.5f, 0.f, 1.f},  // Pulse 95%:    violet
+    {1.f, 0.f, .5f},  // Pulse CV:     rose
+};
+
+static_assert(
+    sizeof(SHAPE_COLORS) / sizeof(SHAPE_COLORS[0]) == NUM_SHAPES,
+    "the shape colors and the oscillator's shapes disagree"
+);
+
+// ---------------------------------------------------------------------------
 // MARK: Module
 // ---------------------------------------------------------------------------
 
@@ -104,7 +159,7 @@ struct Blocks : rack::Module {
     /// @brief Respond to the module being randomized by the engine.
     inline void onRandomize() override {
         for (unsigned voice = 0; voice < NUM_VOICES; voice++) {
-            const auto shape = static_cast<Oscillator::MutableIntstrumentsEdges::DigitalOscillator::Shape>(random::u32() % 6);
+            const auto shape = static_cast<Oscillator::MutableIntstrumentsEdges::DigitalOscillator::Shape>(random::u32() % NUM_SHAPES);
             for (unsigned channel = 0; channel < PORT_MAX_CHANNELS; channel++) {
                 oscillator[channel][voice].setShape(shape);
             }
@@ -145,8 +200,15 @@ struct Blocks : rack::Module {
             const auto key = "shape" + std::to_string(voice + 1);
             json_t* shapeObject = json_object_get(rootJ, key.c_str());
             if (shapeObject) {
+                // clamp the index before casting it: the shape indexes the
+                // color and label tables, and the patch is not to be trusted
+                const auto index = Math::clip(
+                    static_cast<int>(json_integer_value(shapeObject)),
+                    0,
+                    static_cast<int>(NUM_SHAPES) - 1
+                );
                 for (unsigned channel = 0; channel < PORT_MAX_CHANNELS; channel++) {
-                    auto shape = static_cast<Oscillator::MutableIntstrumentsEdges::DigitalOscillator::Shape>(json_integer_value(shapeObject));
+                    auto shape = static_cast<Oscillator::MutableIntstrumentsEdges::DigitalOscillator::Shape>(index);
                     oscillator[channel][voice].setShape(shape);
                 }
             }
@@ -177,7 +239,18 @@ struct Blocks : rack::Module {
         const auto normalMod = oscillator ? inputs[INPUT_FM + oscillator - 1].getVoltage(channel) : 5.f;
         const auto mod = inputs[INPUT_FM + oscillator].getNormalVoltage(normalMod, channel);
         inputs[INPUT_FM + oscillator].setVoltage(mod, channel);
-        pitch += att * mod / 5.f;
+        // The hardware routes a channel's modulation CV to the width of its
+        // pulse, in place of its pitch, when the width is CV controlled.
+        auto& voice = this->oscillator[channel][oscillator];
+        if (voice.isPulseWidthCV()) {
+            // Center the width on a square, so that an unpatched input, which
+            // normals to 5V, renders a 50% pulse, and let the attenuverter set
+            // the depth and the direction of the sweep.
+            const auto width = 0.5f + att * (Math::Eurorack::fromDC(mod) - 0.5f);
+            voice.setPulseWidth(static_cast<uint8_t>(roundf(255 * Math::clip(width, 0.f, 1.f))));
+        } else {
+            pitch += att * mod / 5.f;
+        }
         // convert the pitch to frequency based on standard exponential scale
         return Math::clip(rack::dsp::FREQ_C4 * powf(2.0, pitch), 0.0f, 20000.0f);
     }
@@ -222,15 +295,11 @@ struct Blocks : rack::Module {
             lights[LIGHTS_LEVEL + voice * 3 + 1].setBrightness((1 - brightness) * vuMeter[voice].getBrightness(-12, 0));
             // set the blue light to off
             lights[LIGHTS_LEVEL + voice * 3 + 2].setBrightness(0);
-            // set the envelope mode light in RGB order
-            const auto shape = static_cast<int>(oscillator[0][voice].getShape()) + 1;
-            auto deltaTime = args.sampleTime * lightDivider.getDivision();
-            bool red = shape & 0x4;
-            lights[LIGHTS_SHAPE + 3 * voice + 0].setSmoothBrightness(red, deltaTime);
-            bool green = shape & 0x2;
-            lights[LIGHTS_SHAPE + 3 * voice + 1].setSmoothBrightness(green, deltaTime);
-            bool blue = shape & 0x1;
-            lights[LIGHTS_SHAPE + 3 * voice + 2].setSmoothBrightness(blue, deltaTime);
+            // set the shape light in RGB order
+            const auto shape = static_cast<int>(oscillator[0][voice].getShape());
+            const auto deltaTime = args.sampleTime * lightDivider.getDivision();
+            for (unsigned color = 0; color < 3; color++)
+                lights[LIGHTS_SHAPE + 3 * voice + color].setSmoothBrightness(SHAPE_COLORS[shape][color], deltaTime);
         }
     }
 
@@ -308,16 +377,6 @@ struct BlocksWidget : rack::ModuleWidget {
         // get a pointer to the module
         Blocks* const module = dynamic_cast<Blocks*>(this->module);
 
-        // string representations of the envelope modes
-        static const std::string LABELS[6] = {
-            "Sine",
-            "Triangle",
-            "NES Triangle",
-            "Sample+Hold",
-            "LFSR Long",
-            "LFSR Short",
-        };
-
         /// @brief a structure for holding changes to the oscillator shape.
         struct ShapeValueItem : MenuItem {
             /// the module to update
@@ -344,10 +403,10 @@ struct BlocksWidget : rack::ModuleWidget {
             /// @brief Create a child menu with selections for oscillator shapes.
             Menu* createChildMenu() override {
                 Menu* menu = new Menu;
-                for (int i = 0; i < 6; i++) {
+                for (unsigned i = 0; i < NUM_SHAPES; i++) {
                     auto shape = static_cast<Oscillator::MutableIntstrumentsEdges::DigitalOscillator::Shape>(i);
                     ShapeValueItem* item = new ShapeValueItem;
-                    item->text = LABELS[i];
+                    item->text = SHAPE_LABELS[i];
                     item->rightText = CHECKMARK(module->oscillator[0][voice].getShape() == shape);
                     item->module = module;
                     item->voice = voice;

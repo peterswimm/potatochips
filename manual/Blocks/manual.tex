@@ -1,5 +1,5 @@
 \documentclass[12pt,letter]{article}
-\usepackage[moduleName={Infinite Stairs}]{KautenjaDSP}
+\usepackage[moduleName={Blocks}]{KautenjaDSP}
 \begin{document}
 \titlePage{img/Logo}{img/Module}{img/KautenjaDSP}
 
@@ -9,11 +9,12 @@
 
 \section{Overview}
 
-Blocks is a port of the digital oscillator code from the \href{https://mutable-instruments.net/modules/edges/}{Mutable Instruments Edges Module}. Blocks contains four identical channels, each with a sine, triangle, quantized triangle, sample and hold, short LFSR, and long LFSR oscillator.
+Blocks is a port of the oscillator code from the \href{https://mutable-instruments.net/modules/edges/}{Mutable Instruments Edges Module}. Blocks contains four identical channels, each with a sine, triangle, quantized triangle, sample and hold, short LFSR, and long LFSR oscillator, as well as the pulse waves of the module's timer oscillators.
 \begin{itemize}
-\item \textbf{Quad wave generator:} Quad 16-bit wave generators with six different shapes
+\item \textbf{Quad wave generator:} Quad 16-bit wave generators with twelve different shapes
 \item \textbf{Quantized triangle wave generator:} Generate NES style triangle wave with 16 steps of quantization
 \item \textbf{Noise generator:} generate pseudo-random numbers using sample and hold and short and long LFSRs
+\item \textbf{Pulse wave generator:} Band-limited pulse waves with the five duty cycles of the hardware's timer oscillators, plus a CV controlled width
 \end{itemize}
 
 % -------------------
@@ -36,13 +37,15 @@ The trimpot controls the coarse frequency of the three waveform generators. The 
 
 When nothing is patched to the frequency modulation port, the trimpot can be used to fine tune the frequency of the given waveform generator. When a signal is patched, the input port provides linear frequency modulation to the corresponding waveform generator and the trimpot can be used as an attenuverter to attenuate / polarize the incoming signal. Inputs are normalled forward from waveform generator one through four.
 
+When the \textbf{Pulse CV} shape is selected, this port controls the width of the pulse instead of its frequency, as it does on the hardware. The width is centered on a square wave, i.e., a duty cycle of $50\%$, so an unpatched port renders a square, and the trimpot sets the depth and direction of the sweep.
+
 \subsection{Amplifier}
 
 When no input is connected, the trimpot controls the given waveform generator volume level with 8-bit resolution (i.e., $\in [0, 255]$). When an input is patched to the port, the trimpot acts like an attenuator that scales the CV control over the volume level. Because the amplifier has 8-bit control, the envelope of the voice will sound quantized when used with an external envelope generator. Inputs are normalled forward from waveform generator one through four.
 
 \subsection{Shapes}
 
-The \textbf{SHAPE} button cycles between the 6 shapes of the digital oscillator listed by Table~\ref{tab:oscillator-shapes}. The LED provides an indication of the current shape.
+The \textbf{SHAPE} button cycles between the 12 shapes listed by Table~\ref{tab:oscillator-shapes}. The LED provides an indication of the current shape. The first six shapes are those of the module's digital oscillator; the remaining six are the pulse waves of its timer oscillators. The duty cycles carry the labels of the hardware's panel, each of which is the complement of the duty cycle the timer produces; the two sound the same because a pulse and its complement differ only in sign.
 
 \begin{table}[!htp]
 \centering
@@ -65,6 +68,18 @@ The \textbf{SHAPE} button cycles between the 6 shapes of the digital oscillator 
  \tikz\draw[black,fill=pink] (0,0) circle (1ex);           & Long LFSR           \\
 \hline
  \tikz\draw[black,fill=yellow] (0,0) circle (1ex);         & Short LFSR          \\
+\hline
+ \tikz\draw[black,fill=white] (0,0) circle (1ex);          & Pulse $50\%$        \\
+\hline
+ \tikz\draw[black,fill=orange] (0,0) circle (1ex);         & Pulse $66\%$        \\
+\hline
+ \tikz\draw[black,fill=green!70!cyan] (0,0) circle (1ex);  & Pulse $75\%$        \\
+\hline
+ \tikz\draw[black,fill=cyan!60!blue] (0,0) circle (1ex);   & Pulse $87\%$        \\
+\hline
+ \tikz\draw[black,fill=violet] (0,0) circle (1ex);         & Pulse $95\%$        \\
+\hline
+ \tikz\draw[black,fill=red!50!magenta] (0,0) circle (1ex); & Pulse CV            \\
 \hline
 %  \tikz\draw[black,fill=white] (0,0) circle (1ex);          & Decay-Attack LFO    \\
 % \hline

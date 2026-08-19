@@ -1,4 +1,4 @@
-// The Mutable Instruments Edges digital oscillator, for the disting NT.
+// The oscillators of the Mutable Instruments Edges module, for the disting NT.
 // Copyright 2020 Christian Kauten
 //
 // This program is free software: you can redistribute it and/or modify
@@ -23,6 +23,9 @@ typedef Oscillator::MutableIntstrumentsEdges::DigitalOscillator Voice;
 
 /// the number of voices in the algorithm
 static constexpr unsigned NUM_VOICES = 4;
+
+/// the number of shapes each voice can render
+static constexpr unsigned NUM_SHAPES = Oscillator::MutableIntstrumentsEdges::NUM_SHAPES;
 
 // ---------------------------------------------------------------------------
 // MARK: Parameters
@@ -63,10 +66,16 @@ static char const * const enumStringsShape[] = {
     "Sample & hold",
     "LFSR long",
     "LFSR short",
+    "Pulse 50%",
+    "Pulse 66%",
+    "Pulse 75%",
+    "Pulse 87%",
+    "Pulse 95%",
+    "Pulse CV",
 };
 
 static_assert(
-    ARRAY_SIZE(enumStringsShape) == static_cast<unsigned>(Voice::Shape::Count),
+    ARRAY_SIZE(enumStringsShape) == NUM_SHAPES,
     "the shape names and the oscillator's shapes disagree"
 );
 
@@ -81,7 +90,7 @@ static_assert(
     NT_PARAMETER_CV_INPUT( NAME " FM input", 0, 0 ) \
     { .name = NAME " level", .min = 0, .max = 255, .def = 255, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL }, \
     NT_PARAMETER_CV_INPUT( NAME " level input", 0, 0 ) \
-    { .name = NAME " shape", .min = 0, .max = 5, .def = 0, .unit = kNT_unitEnum, .scaling = 0, .enumStrings = enumStringsShape }, \
+    { .name = NAME " shape", .min = 0, .max = NUM_SHAPES - 1, .def = 0, .unit = kNT_unitEnum, .scaling = 0, .enumStrings = enumStringsShape }, \
     NT_PARAMETER_AUDIO_OUTPUT_WITH_MODE( NAME " output", 0, OUT )
 
 static const _NT_parameter parameters[] = {
@@ -191,8 +200,20 @@ void step(_NT_algorithm* self, float* busFrames, int numFramesBy4) {
             octaves += NTPotatoChips::voltage(voct[voice], frame, 0.f);
             // the FM input normals to 5V so that the attenuverter alone can
             // offset the pitch, as it does in the Rack build
-            octaves += (v[voiceParam(voice, kVoiceFm)] / 100.f) *
-                NTPotatoChips::voltage(fm[voice], frame, 5.f) / 5.f;
+            const float attenuverter = v[voiceParam(voice, kVoiceFm)] / 100.f;
+            const float modulation = NTPotatoChips::voltage(fm[voice], frame, 5.f);
+            // the hardware routes the modulation CV to the width of the pulse,
+            // in place of the pitch, when the width is CV controlled
+            if (pThis->voice[voice].isPulseWidthCV()) {
+                // center the width on a square, as the Rack build does
+                const float width = 0.5f + attenuverter *
+                    (Math::Eurorack::fromDC(modulation) - 0.5f);
+                pThis->voice[voice].setPulseWidth(
+                    static_cast<uint8_t>(roundf(255 * Math::clip(width, 0.f, 1.f)))
+                );
+            } else {
+                octaves += attenuverter * modulation / 5.f;
+            }
             pThis->voice[voice].setFrequency(NTPotatoChips::frequency(octaves));
             pThis->voice[voice].process(sampleTime);
             // the level input normals to 10V, i.e., unity
@@ -215,7 +236,7 @@ void step(_NT_algorithm* self, float* busFrames, int numFramesBy4) {
 static const _NT_factory factory = {
     .guid = NT_MULTICHAR( 'P', 'C', 'b', 'l' ),
     .name = "Blocks",
-    .description = "The Mutable Instruments Edges digital oscillator",
+    .description = "The Mutable Instruments Edges oscillators",
     .numSpecifications = 0,
     .specifications = NULL,
     .calculateStaticRequirements = NULL,

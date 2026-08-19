@@ -342,3 +342,17 @@
 
 -   redesigned Name Corp Octal Wave Generator panel
 -   fixed parameter quantization and snapping across all modules
+
+## 2.1.0 (TBD)
+
+-   Blocks: the pulse waves of the Edges timer oscillators, i.e., channels 1
+    through 3 of the hardware, are available as six new shapes on every channel
+    -   the five duty cycles of the hardware, band-limited with PolyBLEP so
+        that the edges land between samples as the timer's do
+    -   a CV controlled width, which takes the channel's frequency modulation
+        input in place of its pitch, as the hardware does
+    -   the shape indicator light now takes its color from a table, because the
+        three bit encoding it used only reached seven shapes
+-   Blocks: clamp the shape index loaded from a patch
+-   Blocks: a closed gate renders mid-scale, i.e., silence, rather than the
+    negative rail. Neither front-end closes the gate, so no patch changes.
