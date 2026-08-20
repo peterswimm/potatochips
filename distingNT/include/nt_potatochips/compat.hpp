@@ -54,10 +54,13 @@ static constexpr float FREQ_C4 = 261.6256f;
 // MARK: Exceptions
 // ---------------------------------------------------------------------------
 
-// Claim `dsp/exceptions.hpp`'s include guard so that the real header (which
-// needs std::string and a base `Exception` supplied by rack.hpp) is skipped,
-// and provide inert stand-ins for the three exception types the chip emulators
-// name. The arguments are accepted and discarded.
+// Claim `dsp/exceptions.hpp`'s include guard so that the real header is
+// skipped, and provide inert stand-ins for the three exception types the chip
+// emulators name. The arguments are accepted and discarded.
+//
+// The real header builds its messages with std::string, which would pull the
+// allocator in; nothing in this port allocates, so the stand-ins carry no
+// message at all.
 #define DSP_EXCEPTIONS_HPP_
 
 /// @brief An inert stand-in for the exceptions thrown by the DSP layer.
@@ -65,19 +68,19 @@ static constexpr float FREQ_C4 = 261.6256f;
 /// Exceptions are unavailable on the disting NT. The chip emulators only throw
 /// on out-of-range arguments, which the algorithm wrappers in this port are
 /// responsible for never producing; constructing one of these is a no-op.
-struct Exception {
-    explicit Exception(const char*) { }
+struct DSPException {
+    explicit DSPException(const char*) { }
 };
 
 /// @brief An inert stand-in for an out-of-bounds channel index.
-struct ChannelOutOfBoundsException : public Exception {
-    ChannelOutOfBoundsException(unsigned, unsigned) : Exception("channel") { }
+struct ChannelOutOfBoundsException : public DSPException {
+    ChannelOutOfBoundsException(unsigned, unsigned) : DSPException("channel") { }
 };
 
 /// @brief An inert stand-in for an out-of-bounds address.
 template<typename Address>
-struct AddressSpaceException : public Exception {
-    AddressSpaceException(Address, Address, Address) : Exception("address") { }
+struct AddressSpaceException : public DSPException {
+    AddressSpaceException(Address, Address, Address) : DSPException("address") { }
 };
 
 // Turn `throw SomeException(...)` in the DSP headers into an evaluated-and-

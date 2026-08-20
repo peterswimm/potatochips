@@ -1,0 +1,121 @@
+name: build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  dsp-tests:
+    name: DSP unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      # Only Catch2 is needed here; the disting NT API headers are not.
+      - name: Fetch Catch2
+        run: git submodule update --init --depth 1 dep/Catch2
+
+      # Catch2 2.13 uses SIGSTKSZ as an array bound, which is no longer a
+      # constant in glibc 2.34 and later. Its POSIX signal handling is not
+      # needed to run these suites.
+      - name: Build and run every suite
+        run: |
+          set -euo pipefail
+          mkdir -p build/test
+          failed=0
+          for source in $(find test -name '*.cpp' | sort); do
+            name=$(basename "$source" .cpp)
+            echo "::group::$name"
+            g++ -std=c++11 -pthread -pipe -pedantic -Wall -Wno-unused-value \
+              -DCATCH_CONFIG_NO_POSIX_SIGNALS \
+              -Isrc -Idep/Catch2/single_include/catch2 \
+              -o "build/test/$name" "$source"
+            "./build/test/$name" || failed=1
+            echo "::endgroup::"
+          done
+          exit $failed
+
+  rack-plugin:
+    name: Rack plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Fetch the Rack SDK
+        run: |
+          set -euo pipefail
+          curl -fsSL -o rack-sdk.zip \
+            "https://vcvrack.com/downloads/Rack-SDK-${RACK_SDK_VERSION}-lin-x64.zip"
+          unzip -q rack-sdk.zip
+        env:
+          RACK_SDK_VERSION: 2.5.2
+
+      - name: Build
+        run: make RACK_DIR="$PWD/Rack-SDK" -j"$(nproc)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-so
+          path: plugin.so
+
+  distingnt-plugins:
+    name: disting NT plug-ins
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Fetch the disting NT API
+        run: git submodule update --init --depth 1 dep/distingNT_API
+
+      - name: Install the Arm toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi
+
+      # The algorithms must build warning-free for the Cortex-M7, with the same
+      # flags the API's own examples use.
+      - name: Build for the Cortex-M7
+        run: |
+          set -euo pipefail
+          make -C distingNT 2>&1 | tee arm-build.log
+          if grep -qiE 'warning|error' arm-build.log; then
+            echo "the Arm build is not clean"
+            exit 1
+          fi
+
+      # Nothing in the port may allocate: the module hands each algorithm a
+      # fixed budget and there is no allocator behind it.
+      - name: Check that nothing allocates
+        run: |
+          set -euo pipefail
+          for object in distingNT/build/*.o; do
+            if arm-none-eabi-nm -u "$object" | grep -E '_Znwm|_Znam|malloc|__cxa_'; then
+              echo "$object references an allocator or the C++ ABI runtime"
+              exit 1
+            fi
+          done
+
+      # Every algorithm runs on the host under the sanitizers, standing in for
+      # the module. See distingNT/test/harness.cpp.
+      - name: Run the host harness
+        run: make -C distingNT/test
+
+      # The default seed keeps the run above reproducible; these widen the
+      # pseudo-random parameter pass.
+      - name: Run the harness over more seeds
+        run: |
+          set -euo pipefail
+          for seed in 1 2 3 0xDEAD 0xBEEF; do
+            for binary in distingNT/test/build/*; do
+              case "$binary" in *.o|*.d|*.passed) continue;; esac
+              "$binary" "$seed" > /dev/null
+            done
+          done

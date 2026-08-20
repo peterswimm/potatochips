@@ -146,6 +146,11 @@ default seed keeps runs reproducible.
 What it cannot check is whether an algorithm *sounds* like its Rack
 counterpart. That needs the module.
 
+Both builds and both test suites run in CI on every pull request — see
+[`.github/workflows/build.yml`](../.github/workflows/build.yml). The disting NT
+job also asserts that the Arm build stays warning-free and that no object
+references an allocator.
+
 ## Differences from the Rack build
 
 The port reproduces the Rack modules' register math as it stands, including
@@ -158,6 +163,14 @@ the algorithm more than once for more voices.
 **No sample rate tracking of the envelopes.** As in the Rack build, the S-DSP
 envelope generators are clocked once per output sample rather than at the chip's
 own 32kHz, so envelope times follow the module's sample rate.
+
+**Super VCA's loudness compensation is not a bug.** An earlier version of this
+document claimed the compensation ran the wrong way. It does not:
+`GaussianInterpolationFilter::getFilterLabel()` names the *emulator's* filter
+value, where 0 is "Barely Audible" and 3 is "Loud", so `setFilter(3 - mode)`
+pairs the quietest filter with the largest `2^mode` boost. Measured, the raw
+output halves as the filter weakens and the compensation equalises the first
+three modes to within 5%. The port keeps the mapping unchanged.
 
 **Two upstream bugs are not carried over.** Super VCA passes its frequency to
 the filter in Hz; the Rack build converts to a pitch register value first and
@@ -197,19 +210,17 @@ all of them affect the Rack build too:
     multiplies by the same powers of two, which are exact at these magnitudes,
     and the products are computed wide before being clamped.
 
-### Left alone
+### The built-in sample
 
-Two things look wrong but were left as they are, because changing them changes
-what the modules sound like:
-
--   Super VCA's loudness compensation rises with the filter mode (`2^mode`)
-    while the filter itself weakens (`setFilter(3 - mode)`), so the mode
-    labelled quietest is unfiltered and boosted eight times — the opposite of
-    what the code's comment describes. The port keeps the Rack mapping, which
-    is why the algorithm can peak past the nominal output range.
--   Super Sampler's built-in sample is packed into BRR nibbles without masking,
-    so a negative sample's sign extension sets the neighbouring nibble too. The
-    packing is preserved exactly; only the undefined shift was removed.
+Super Sampler's built-in wave was packed into its BRR nibbles wrongly, in two
+ways that compounded: neither nibble was masked to four bits, so a negative
+sample's sign extension filled its neighbour, and the pair was written in the
+opposite order to the one the decoder reads — it takes a byte's high nibble
+before its low one, so the earlier sample belongs in the high nibble. Decoding
+the shipped bytes back reproduces 42.5% of the 13,083 samples incorrectly.
+Masking alone makes it slightly worse (44.7%); both together give an exact
+reproduction. Fixed in the Rack module and the algorithm alike, so the sample
+plays as recorded — it does not sound as it did before.
 
 Some things the Rack panels offer have no equivalent here. The GameBoy and
 Namco 163 modules let you draw their wave-tables; this port morphs between the

@@ -435,7 +435,7 @@ class Ricoh2A03 {
     ///
     void run_until(int32_t end_time) {
         if (end_time < last_time)
-            throw Exception("end_time must be >= last_time");
+            throw DSPException("end_time must be >= last_time");
         else if (end_time == last_time)
             return;
 
