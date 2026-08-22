@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include "../math.hpp"
 #include "wavetables.hpp"
 
@@ -28,6 +29,46 @@ namespace Oscillator {
 /// @brief Oscillator code from the Mutable Instruments _Edges_ module.
 namespace MutableIntstrumentsEdges {
 
+/// @brief The 8-bit pulse widths of the module's timer oscillators.
+/// @details
+/// These are the `pulse_widths` table from `timer_oscillator.cc`, less the
+/// last entry, which the hardware ignores in favor of a CV. The panel labels
+/// them _50%_, _66%_, _75%_, _87%_, and _95%_, whereas the value here is the
+/// complementary duty cycle the timer produces; the two sound the same because
+/// a pulse and its complement differ only in sign.
+const uint8_t pulse_widths[] = {128, 85, 64, 32, 13};
+
+/// the smallest CV controlled pulse width, i.e., `TimerOscillator::set_cv_pw()`
+const uint8_t PULSE_WIDTH_MIN = 6;
+
+/// the largest CV controlled pulse width, i.e., `TimerOscillator::set_cv_pw()`
+const uint8_t PULSE_WIDTH_MAX = 250;
+
+/// @brief Return the PolyBLEP correction for a step in a waveform.
+///
+/// @param phase the phase of the oscillator relative to the step in
+/// \f$[0, 1)\f$
+/// @param deltaPhase the amount the phase advances each sample
+/// @returns the correction to add to a rising step of amplitude 2, i.e., the
+/// amount to subtract from a falling one
+/// @details
+/// The pulse channels of the hardware come from a timer that toggles an output
+/// pin, so their edges land between samples and carry no aliasing of their own.
+/// Comparing a sampled phase against the pulse width would instead quantize
+/// every edge onto a sample boundary, which aliases badly, so the samples
+/// either side of an edge are corrected by the integral of a band-limited step.
+///
+inline float polyBlep(float phase, const float& deltaPhase) {
+    if (phase < deltaPhase) {  // the sample after the step
+        phase = phase / deltaPhase;
+        return phase + phase - phase * phase - 1.f;
+    } else if (phase > 1.f - deltaPhase) {  // the sample before the step
+        phase = (phase - 1.f) / deltaPhase;
+        return phase * phase + phase + phase + 1.f;
+    }
+    return 0.f;
+}
+
 /// @brief A 48kHz digital oscillator with different shapes
 /// @details
 /// The available shapes are:
@@ -35,8 +76,10 @@ namespace MutableIntstrumentsEdges {
 /// 2. Triangle,
 /// 3. Nintendo Entertainment System (NES) Triangle,
 /// 4. Sample+Hold (S+H) Noise,
-/// 5. Linear Feedback Shift Register (LFSR) Noise Short, and
-/// 6. Linear Feedback Shift Register (LFSR) Noise Long.
+/// 5. Linear Feedback Shift Register (LFSR) Noise Short,
+/// 6. Linear Feedback Shift Register (LFSR) Noise Long, and
+/// 7. the pulse waves of the module's timer oscillators, with the five duty
+///    cycles of the hardware and a width that a CV can control.
 ///
 class DigitalOscillator {
  public:
@@ -48,6 +91,16 @@ class DigitalOscillator {
         SampleHold,
         LFSR_Long,
         LFSR_Short,
+        // The pulse shapes of the module's timer oscillators, i.e., channels
+        // 1 through 3 of the hardware. They are appended to the list so that
+        // the index of every shape above is unchanged, and patches that store
+        // a shape index therefore still load.
+        Pulse50,
+        Pulse66,
+        Pulse75,
+        Pulse87,
+        Pulse95,
+        PulseCV,
         Count
     };
 
@@ -152,6 +205,15 @@ class DigitalOscillator {
     ///
     inline Shape getShape() const { return shape; }
 
+    /// @brief Return true if the shape takes its pulse width from a CV.
+    ///
+    /// @returns true if the current shape is the CV controlled pulse
+    /// @details
+    /// The hardware routes a channel's modulation CV to its pulse width, in
+    /// place of its pitch, when the width of the channel is CV controlled.
+    ///
+    inline bool isPulseWidthCV() const { return shape == Shape::PulseCV; }
+
     /// @brief Cycle the shape of the oscillator.
     inline void cycleShape() {
         const auto length = static_cast<int>(Shape::Count);
@@ -204,9 +266,10 @@ class DigitalOscillator {
     ///
     inline float getValue() const {
         // divide the 12-bit value by 4096.0 to normalize in [0.0, 1.0]
-        // multiply by 2 and subtract 1 to get the value in [-1.0, 1.0]
-        // return gateOpen * 2 * static_cast<float>(value >> 12) - 1;
-        return gateOpen * 2 * (value / 4096.f) - 1;
+        // multiply by 2 and subtract 1 to get the value in [-1.0, 1.0]. A
+        // closed gate renders mid-scale, as `RenderSilence()` does on the
+        // hardware, so the gate needs no term of its own here.
+        return 2 * (value / 4096.f) - 1;
     }
 
     /// @brief Process a sample from the oscillator.
@@ -214,8 +277,8 @@ class DigitalOscillator {
     /// @param deltaTime the amount of time between samples
     ///
     void process(const float& deltaTime) {
-        if (!gateOpen) {
-            value = 0.f;
+        if (!gateOpen) {  // render silence, i.e., mid-scale
+            value = 2048;
             return;
         }
         // Advance phase counter
@@ -232,6 +295,12 @@ class DigitalOscillator {
         case Shape::SampleHold:   { return renderNoise(phaseQ, deltaPhaseQ);    }
         case Shape::LFSR_Long:    { return renderNoiseNES(phaseQ, deltaPhaseQ); }
         case Shape::LFSR_Short:   { return renderNoiseNES(phaseQ, deltaPhaseQ); }
+        case Shape::Pulse50:      // fall through to the pulse renderer, which
+        case Shape::Pulse66:      // resolves the width from the shape itself
+        case Shape::Pulse75:
+        case Shape::Pulse87:
+        case Shape::Pulse95:
+        case Shape::PulseCV:      { return renderPulse(phase, deltaPhase);       }
         default:                  { return;                                     }
         };
     }
@@ -283,6 +352,35 @@ class DigitalOscillator {
         value = sample;
     }
 
+    /// @brief Render a band-limited pulse wave from the oscillator.
+    ///
+    /// @param phase the phase of the oscillator in \f$[0, 1)\f$
+    /// @param deltaPhase the amount the phase advances each sample
+    /// @details
+    /// The pulse keeps the DC offset that a duty cycle away from _50%_ implies,
+    /// as the timer's output pin does, and quantizes to the 12 bits the other
+    /// shapes render into. At the extremes of pitch and width the pulse may
+    /// last less than a sample, in which case it thins out, much as the
+    /// hardware's timer runs out of resolution.
+    ///
+    void renderPulse(const float& phase, const float& deltaPhase) {
+        // resolve the duty cycle of the pulse from the shape
+        const uint8_t width = shape == Shape::PulseCV ?
+            Math::clip(pulseWidth, PULSE_WIDTH_MIN, PULSE_WIDTH_MAX) :
+            pulse_widths[static_cast<int>(shape) - static_cast<int>(Shape::Pulse50)];
+        const float duty = width / 256.f;
+        // the naive pulse, i.e., the output pin of the timer sampled directly
+        float pulse = phase < duty ? 1.f : -1.f;
+        // correct the rising edge, which is at the wrap-around of the phase
+        pulse += polyBlep(phase, deltaPhase);
+        // correct the falling edge, which is at the end of the pulse
+        float falling = phase - duty;
+        if (falling < 0.f) falling += 1.f;
+        pulse -= polyBlep(falling, deltaPhase);
+        // quantize to 12-bit, where mid-scale is silence
+        value = static_cast<uint16_t>(Math::clip(2048.f + 2047.f * pulse, 0.f, 4095.f));
+    }
+
     /// Render and hold noise from the oscillator.
     void renderNoise(const uint16_t& phase, const uint16_t& deltaPhase) {
         if (phase < deltaPhase) {  // sample a new value
@@ -294,6 +392,9 @@ class DigitalOscillator {
         value = sample;
     }
 };
+
+/// the number of shapes the oscillator can render
+const unsigned NUM_SHAPES = static_cast<unsigned>(DigitalOscillator::Shape::Count);
 
 }  // namespace MutableIntstrumentsEdges
 

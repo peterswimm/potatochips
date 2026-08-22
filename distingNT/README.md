@@ -43,7 +43,7 @@ you use.
 
 | Algorithm | GUID | Chip | Voices |
 |:--|:--|:--|:--|
-| Blocks | `PCbl` | Mutable Instruments Edges digital oscillator | 4 |
+| Blocks | `PCbl` | Mutable Instruments Edges digital and timer oscillators | 4 |
 | Boss Fight | `PCbf` | Yamaha YM2612 (Sega Mega Drive) | 1 (4 operators) |
 | Infinite Stairs | `PC2A` | Ricoh 2A03 (Nintendo Entertainment System) | 4 |
 | Jairasullator | `PCay` | General Instrument AY-3-8910 (MSX, ZX Spectrum) | 3 |
