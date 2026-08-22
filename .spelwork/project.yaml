@@ -1,0 +1,35 @@
+---
+schema_version: 1
+project:
+  slug: potatochips-spelwork
+  name: "Potato Chips: Spelwork Provenance Edition"
+  status: public-maintained-fork
+  province: forge.spelwork
+  steward: Peter Swimm
+  repository: https://github.com/peterswimm/potatochips
+  contact: https://github.com/peterswimm/potatochips/issues
+upstreams:
+  - name: Potato Chips
+    author: Christian Kauten
+    repository: https://github.com/Kautenja/PotatoChips
+    relationship: maintained derivative
+    license: GPL-3.0-or-later
+governance:
+  release_approval: human-maintainer-required
+  contribution_review: maintainer-review-required
+  ai_disclosure: revision-level
+  provenance_records:
+    - NOTICE.md
+    - PROVENANCE.md
+    - AI-NUTRITION.md
+    - sbom.spdx.json
+licensing:
+  code: GPL-3.0-or-later
+  inherited_visual_assets: CC-BY-NC-ND-4.0
+  foss_claim_scope: code-and-newly-labeled-assets-only
+release_requirements:
+  - publication-metadata-check
+  - build-and-test
+  - SPDX-inventory-review
+  - AI-nutrition-label-review
+  - human-maintainer-approval

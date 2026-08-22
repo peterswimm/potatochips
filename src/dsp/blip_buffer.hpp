@@ -248,22 +248,24 @@ class BLIPEqualizer {
             treble = -300;
         else if (treble > 5)
             treble = 5;
-        static constexpr T maxh = 4096;
-        const T rolloff = pow(10, 1 / (20 * maxh) * treble / (1 - cutoff));
-        const T pow_a_n = pow(rolloff, maxh - maxh * cutoff);
-        const T to_angle = PI / 2 / maxh / oversample;
+        static constexpr double maxh = 4096;
+        const double cutoff_ = cutoff;
+        const double rolloff = pow(10.0, treble / (20.0 * maxh * (1.0 - cutoff_)));
+        const double pow_a_n = pow(rolloff, maxh - maxh * cutoff_);
+        const double to_angle = static_cast<double>(PI) / 2.0 / maxh / oversample;
         for (size_t i = 0; i < count; i++) {
-            T angle = (2 * (i - count) + 1) * to_angle;
-            T c = rolloff * cos((maxh - 1) * angle) - cos(maxh * angle);
-            T cos_nc_angle = cos(maxh * cutoff * angle);
-            T cos_nc1_angle = cos((maxh * cutoff - 1) * angle);
-            T cos_angle = cos(angle);
+            const int64_t distance = static_cast<int64_t>(i) - static_cast<int64_t>(count);
+            const double angle = (2 * distance + 1) * to_angle;
+            double c = rolloff * cos((maxh - 1) * angle) - cos(maxh * angle);
+            const double cos_nc_angle = cos(maxh * cutoff_ * angle);
+            const double cos_nc1_angle = cos((maxh * cutoff_ - 1) * angle);
+            const double cos_angle = cos(angle);
             c = c * pow_a_n - rolloff * cos_nc1_angle + cos_nc_angle;
-            T d = 1 + rolloff * (rolloff - cos_angle - cos_angle);
-            T b = 2 - cos_angle - cos_angle;
-            T a = 1 - cos_angle - cos_nc_angle + cos_nc1_angle;
+            const double d = 1.0 + rolloff * (rolloff - cos_angle - cos_angle);
+            const double b = 2.0 - cos_angle - cos_angle;
+            const double a = 1.0 - cos_angle - cos_nc_angle + cos_nc1_angle;
             // a / b + c / d
-            out[i] = (a * d + c * b) / (b * d);
+            out[i] = static_cast<T>((a * d + c * b) / (b * d));
         }
     }
 
@@ -306,7 +308,7 @@ class BLIPEqualizer {
         gen_sinc(out, count, BLIPBuffer::RESOLUTION * oversample, treble, cutoff);
         // apply (half of) hamming window
         const T to_fraction = PI / (count - 1);
-        for (uint32_t i = count; i > 0; i--)
+        for (uint32_t i = 0; i < count; i++)
             out[i] *= 0.54 - 0.46 * cos(i * to_fraction);
     }
 };
@@ -425,7 +427,7 @@ class BLIPSynthesizer {
         int32_t i;
         // need mirror slightly past center for calculation
         for (i = BLIPBuffer::RESOLUTION; i > 0; i--)
-            fimpulse[BLIPBuffer::RESOLUTION + HALF_SIZE + i] = fimpulse[BLIPBuffer::RESOLUTION + HALF_SIZE - 1 - i];
+            fimpulse[BLIPBuffer::RESOLUTION + HALF_SIZE + i - 1] = fimpulse[BLIPBuffer::RESOLUTION + HALF_SIZE - i];
         // starts at 0
         for (i = 0; i < BLIPBuffer::RESOLUTION; i++)
             fimpulse[i] = 0;

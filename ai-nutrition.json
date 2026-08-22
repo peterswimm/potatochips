@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "project": "potatochips-spelwork",
+  "updated": "2026-08-22",
+  "steward": "Peter Swimm",
+  "disclosure_unit": "revision-and-path-scope",
+  "release_requires_human_approval": true,
+  "known_assisted_work": [
+    {
+      "scope": "disting NT port, host harness, and CI",
+      "system": "Claude Opus 5",
+      "role": "implementation and documentation assistance",
+      "accountable_human": "Peter Swimm",
+      "evidence": "commits bd468f76 through 45ce1319",
+      "review_state": "merged"
+    },
+    {
+      "scope": "BLIP impulse-table safety corrections and strict sanitizer gate",
+      "system": "Codex (GPT-5)",
+      "role": "diagnosis, implementation, and test execution assistance",
+      "accountable_human": "Peter Swimm",
+      "paths": [
+        "src/dsp/blip_buffer.hpp",
+        "distingNT/test/Makefile"
+      ],
+      "review_state": "pending-maintainer-release-approval"
+    },
+    {
+      "scope": "Spelwork provenance and publication metadata",
+      "system": "Codex (GPT-5)",
+      "role": "documentation and workflow implementation assistance",
+      "accountable_human": "Peter Swimm",
+      "review_state": "pending-maintainer-release-approval"
+    }
+  ],
+  "training_data_claim": "not asserted",
+  "private_data_policy": "Do not submit secrets, private patches, proprietary audio, personal data, or unpublished vulnerability details without explicit consent."
+}

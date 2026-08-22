@@ -1,0 +1,98 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "Potato Chips: Spelwork Provenance Edition",
+  "documentNamespace": "https://github.com/peterswimm/potatochips/spdx/2026-08-22",
+  "creationInfo": {
+    "created": "2026-08-22T00:00:00Z",
+    "creators": [
+      "Tool: Spelwork publication metadata"
+    ]
+  },
+  "packages": [
+    {
+      "name": "potatochips-spelwork",
+      "SPDXID": "SPDXRef-Package-PotatoChips",
+      "versionInfo": "git-7cbc53be-plus-working-tree",
+      "downloadLocation": "https://github.com/peterswimm/potatochips",
+      "filesAnalyzed": false,
+      "licenseConcluded": "GPL-3.0-or-later",
+      "licenseDeclared": "GPL-3.0-or-later",
+      "copyrightText": "NOASSERTION",
+      "supplier": "Organization: Spelwork stewardship, Peter Swimm"
+    },
+    {
+      "name": "Potato Chips upstream source",
+      "SPDXID": "SPDXRef-Package-Upstream",
+      "downloadLocation": "https://github.com/Kautenja/PotatoChips",
+      "filesAnalyzed": false,
+      "licenseConcluded": "GPL-3.0-or-later",
+      "licenseDeclared": "GPL-3.0-or-later",
+      "copyrightText": "Copyright 2020-2024 Christian Kauten and contributors"
+    },
+    {
+      "name": "Blargg audio-library material",
+      "SPDXID": "SPDXRef-Package-Blargg",
+      "downloadLocation": "https://github.com/amhndu/SimpleNES",
+      "filesAnalyzed": false,
+      "licenseConcluded": "LGPL-2.1-only",
+      "licenseDeclared": "LGPL-2.1-only",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "distingNT_API",
+      "SPDXID": "SPDXRef-Package-DistingNTAPI",
+      "downloadLocation": "git+https://github.com/expertsleepersltd/distingNT_API.git@f440d20c2a96a9ca43892c7418a1d8185ad47eb5",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "Copyright Expert Sleepers Ltd."
+    },
+    {
+      "name": "Catch2",
+      "SPDXID": "SPDXRef-Package-Catch2",
+      "downloadLocation": "git+https://github.com/catchorg/Catch2.git",
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSL-1.0",
+      "licenseDeclared": "BSL-1.0",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "Inherited visual assets",
+      "SPDXID": "SPDXRef-Package-VisualAssets",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "CC-BY-NC-ND-4.0",
+      "licenseDeclared": "CC-BY-NC-ND-4.0",
+      "copyrightText": "Copyright 2020-2024 Christian Kauten"
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-PotatoChips"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-PotatoChips",
+      "relationshipType": "GENERATED_FROM",
+      "relatedSpdxElement": "SPDXRef-Package-Upstream"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-PotatoChips",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-VisualAssets"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-PotatoChips",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-DistingNTAPI"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-PotatoChips",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-Catch2"
+    }
+  ]
+}

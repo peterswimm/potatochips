@@ -19,6 +19,17 @@ They're just so addicting!
 
 [SamHyde-PotatoChips]: https://www.youtube.com/watch?v=lL5M-vXq58c
 
+> **Spelwork provenance edition:** This is a maintained derivative of
+> [Kautenja/PotatoChips](https://github.com/Kautenja/PotatoChips), not an
+> official KautenjaDSP release. Upstream authorship, component licenses, and
+> known AI assistance are documented in [NOTICE.md](NOTICE.md),
+> [PROVENANCE.md](PROVENANCE.md), [THIRD_PARTY.md](THIRD_PARTY.md), and
+> [AI-NUTRITION.md](AI-NUTRITION.md).
+>
+> The code is GPL-3.0-or-later. Inherited panel, manual, logo, and icon assets
+> remain CC BY-NC-ND 4.0, so the complete repository is not wholly FOSS. The
+> FOSS claim applies only to the code and newly labeled Spelwork materials.
+
 All sixteen modules are also available as native plug-ins for the
 [Expert Sleepers disting NT](https://www.expert-sleepers.co.uk/distingNT.html).
 See [`distingNT/README.md`](distingNT/README.md) to build and install them.

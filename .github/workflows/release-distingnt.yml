@@ -1,0 +1,50 @@
+---
+name: release disting NT artifacts
+
+"on":
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  attestations: write
+  id-token: write
+
+jobs:
+  release:
+    name: Build, attest, and attach disting NT artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Fetch the disting NT API
+        run: git submodule update --init --depth 1 dep/distingNT_API
+
+      - name: Install the Arm toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi
+
+      - name: Build publication metadata and plug-ins
+        run: |
+          set -euo pipefail
+          make publication-check RACK_DIR=/tmp/rack-not-needed
+          make -C distingNT
+          mkdir -p release
+          cp distingNT/build/*.o release/
+          sha256sum release/*.o > release/SHA256SUMS
+          zip -j "release/distingNT-${GITHUB_REF_NAME}.zip" release/*.o
+
+      - name: Attest plug-in archive
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: release/distingNT-${{ github.ref_name }}.zip
+
+      - name: Attach release artifacts
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" release/distingNT-*.zip release/SHA256SUMS --clobber

@@ -1,0 +1,17 @@
+---
+name: publication metadata
+
+"on":
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Verify public provenance metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify required metadata
+        run: make publication-check RACK_DIR=/tmp/rack-not-needed

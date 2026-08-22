@@ -35,3 +35,7 @@ your test configuration
 - [ ] I have made corresponding changes to the documentation following the
       [Doxygen](https://www.doxygen.nl/manual/docblocks.html) style
 - [ ] I have tested that my fix is effective or that my feature works
+- [ ] I have preserved upstream attribution and checked applicable licenses
+- [ ] I have updated `PROVENANCE.md`, `THIRD_PARTY.md`, and `sbom.spdx.json` when the change affects them
+- [ ] I have disclosed material AI assistance in `AI-NUTRITION.md` and `ai-nutrition.json`
+- [ ] I have not added or modified inherited CC BY-NC-ND artwork without authorization

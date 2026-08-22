@@ -24,10 +24,11 @@ CXXFLAGS := \
 	-O1 -g \
 	-MMD -MP \
 	-fsanitize=address,undefined \
+	-fno-sanitize-recover=undefined \
 	-fno-omit-frame-pointer \
 	-Wall -Wno-class-memaccess -Wno-unused-variable
 
-LDFLAGS := -fsanitize=address,undefined
+LDFLAGS := -fsanitize=address,undefined -fno-sanitize-recover=undefined
 
 BUILD_DIR := build
 
